@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.work.*
 import com.example.labweek8.worker.FirstWorker
 import com.example.labweek8.worker.SecondWorker
+import com.example.labweek8.worker.ThirdWorker
 
 class MainActivity : AppCompatActivity() {
 
@@ -57,11 +58,18 @@ class MainActivity : AppCompatActivity() {
             .setConstraints(networkConstraints)
             .setInputData(getIdInputData(SecondWorker.INPUT_DATA_ID, id))
             .build()
+    // Third Worker
+        val thirdRequest = OneTimeWorkRequest.Builder(ThirdWorker::class.java)
+            .setConstraints(networkConstraints)
+            .setInputData(getIdInputData(ThirdWorker.INPUT_DATA_ID, id))
+            .build()
 
-        // Chain the work sequence
+    // Sequence: First → Second → Third
         workManager.beginWith(firstRequest)
             .then(secondRequest)
+            .then(thirdRequest)
             .enqueue()
+
 
         // Observe FirstWorker result
         workManager.getWorkInfoByIdLiveData(firstRequest.id)
@@ -79,6 +87,14 @@ class MainActivity : AppCompatActivity() {
                     launchNotificationService()
                 }
             }
+        workManager.getWorkInfoByIdLiveData(thirdRequest.id)
+            .observe(this) { info ->
+                if (info.state.isFinished) {
+                    showResult("Third process is done")
+                    launchSecondNotificationService()
+                }
+            }
+
     }
 
     // Build input data for worker
@@ -104,6 +120,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Start the Foreground Service
+        ContextCompat.startForegroundService(this, serviceIntent)
+    }
+    private fun launchSecondNotificationService() {
+        SecondNotificationService.trackingCompletion.observe(this) { Id ->
+            showResult("Second Notification Channel ID $Id is done!")
+        }
+
+        val serviceIntent = Intent(this, SecondNotificationService::class.java).apply {
+            putExtra(EXTRA_ID, "002")
+        }
+
         ContextCompat.startForegroundService(this, serviceIntent)
     }
 
